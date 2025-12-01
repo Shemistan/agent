@@ -3,17 +3,17 @@ version: '3.8'
 services:
   db:
     image: postgres:16-alpine
-    container_name: agent_db
+    container_name: pgsql_db
     environment:
-      POSTGRES_USER: agent_user
-      POSTGRES_PASSWORD: agent_password
-      POSTGRES_DB: agent_db
+      POSTGRES_USER: ${DB_USER:-pgsql_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password_here}
+      POSTGRES_DB: pgsql_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agent_user -d agent_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pgsql_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,16 +24,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: agent_migrator
+    container_name: pgsql_migrator
     environment:
-      DB_USER: agent_user
-      DB_PASSWORD: agent_password
+      DB_USER: ${DB_USER:-pgsql_user}
+      DB_PASSWORD: ${DB_PASSWORD:-secure_password_here}
     command: ./migrator migration
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - agent_network
+    volumes:
+      - ./app.toml:/app/app.toml:ro
+      - ./migration:/app/migration:ro
 
   agent:
     build:
@@ -41,8 +42,8 @@ services:
       dockerfile: Dockerfile
     container_name: agent_service
     environment:
-      DB_USER: agent_user
-      DB_PASSWORD: agent_password
+      DB_USER: ${DB_USER:-pgsql_user}
+      DB_PASSWORD: ${DB_PASSWORD:-secure_password_here}
       LOG_LEVEL: info
     ports:
       - "8080:8080"
