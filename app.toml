@@ -1,0 +1,13 @@
+service_name = "agent"
+service_env = "local"       # local / prod
+http_port = 8080
+
+[database]
+host = "localhost"
+port = 5432
+name = "agent_db"
+sslmode = "disable"
+
+[manager]
+url = "http://localhost:8081"
+timeout_seconds = 5
