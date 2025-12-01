@@ -1,7 +1,6 @@
 linters:
   disable-all: true
   enable:
-    - revive
     - govet
     - errcheck
     - ineffassign
@@ -16,27 +15,6 @@ linters:
     - whitespace
     - gci # раз уже настраиваем gci, имеет смысл его включить
 
-  # НОВЫЙ способ исключать директории (вместо run.skip-dirs)
-  exclusions:
-    paths:
-      # регулярки; ^tests/ означает "всё внутри каталога tests"
-      - ^tests/
-      - ^dev/
-
-linters-settings:
-  gci:
-    custom-order: true
-    sections:
-      - standard
-      - default
-    skip-generated: true
-    # правильное имя ключа — no-inline-comments (во множественном числе)
-    no-inline-comments: true
-  revive:
-    rules:
-      - name: var-naming
-        disabled: true
-
-# секцию run можно оставить пустой или вообще убрать, если больше ничего не нужно
-# run:
-#   timeout: 3m
+run:
+  # Чтобы не висеть вечно, но и не падать слишком быстро
+  timeout: 3m
