@@ -56,15 +56,11 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.healthService.HandleHealth(ctx); err != nil {
 		h.logger.Error("health handler: failed to save health call", slog.String("error", err.Error()))
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(HealthResponse{Status: "error"})
+		h.respondJSON(w, http.StatusInternalServerError, HealthResponse{Status: "error"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(HealthResponse{Status: "success"})
+	h.respondJSON(w, http.StatusOK, HealthResponse{Status: "success"})
 }
 
 // CheckManager handles GET /check-manager requests
@@ -75,9 +71,7 @@ func (h *Handler) CheckManager(w http.ResponseWriter, r *http.Request) {
 	results, err := h.managerCheckService.CheckManager(ctx)
 	if err != nil {
 		h.logger.Error("check-manager handler: service error", slog.String("error", err.Error()))
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ManagerCheckResponse{
+		h.respondJSON(w, http.StatusInternalServerError, ManagerCheckResponse{
 			Status:   "error",
 			Managers: []ManagerCheckItemResponse{},
 		})
@@ -111,7 +105,15 @@ func (h *Handler) CheckManager(w http.ResponseWriter, r *http.Request) {
 		Managers: managers,
 	}
 
+	h.respondJSON(w, http.StatusOK, response)
+}
+
+// respondJSON writes structured JSON responses and logs encoding errors.
+func (h *Handler) respondJSON(w http.ResponseWriter, statusCode int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	w.WriteHeader(statusCode)
+
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		h.logger.Error("failed to encode response", slog.String("error", err.Error()))
+	}
 }

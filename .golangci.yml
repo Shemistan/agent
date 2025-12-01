@@ -1,0 +1,36 @@
+# More info on config here: https://github.com/golangci/golangci-lint#config-file
+linters:
+  disable-all: true
+  enable:
+    - revive
+    - govet
+    - errcheck
+    - ineffassign
+    - typecheck
+    - gosec
+    - gofumpt
+    - gosimple
+    - unused
+    - staticcheck
+    - gochecknoinits
+    - makezero
+    - whitespace
+
+linters-settings:
+  gci:
+    custom-order: true
+    sections:
+      - standard
+      - default
+      - prefix(go.avito.ru/dwh/service-dwh-data-security)
+    skip-generated: true
+    no-inline-comment: true
+  revive:
+    rules:
+      - name: var-naming # usually this is not critical
+        disabled: true
+
+run:
+  skip-dirs:
+    - tests
+    - dev

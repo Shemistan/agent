@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -12,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // nolint:gci
 
 	"github.com/Shemistan/agent/internal/config"
 )
@@ -35,7 +34,11 @@ func Run(configPath, migrationDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
-	defer db.Close()
+	defer func() {
+		if cerr := db.Close(); cerr != nil {
+			logger.Warn("failed to close database", slog.String("error", cerr.Error()))
+		}
+	}()
 
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
@@ -64,7 +67,7 @@ func Run(configPath, migrationDir string) error {
 // runMigrations executes all SQL migrations in order
 func runMigrations(db *sql.DB, migrationDir string, logger *slog.Logger) error {
 	// Read migration directory
-	files, err := ioutil.ReadDir(migrationDir)
+	files, err := os.ReadDir(migrationDir)
 	if err != nil {
 		return fmt.Errorf("failed to read migration directory: %w", err)
 	}
@@ -92,7 +95,7 @@ func runMigrations(db *sql.DB, migrationDir string, logger *slog.Logger) error {
 		filePath := filepath.Join(migrationDir, sqlFile)
 		logger.Info("Running migration", slog.String("file", sqlFile))
 
-		content, err := ioutil.ReadFile(filePath)
+		content, err := os.ReadFile(filePath)
 		if err != nil {
 			return fmt.Errorf("failed to read migration file %s: %w", sqlFile, err)
 		}
