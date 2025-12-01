@@ -9,12 +9,11 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/lib/pq" // nolint:gci
-
 	api "github.com/Shemistan/agent/internal/api/agent"
 	"github.com/Shemistan/agent/internal/config"
 	svc "github.com/Shemistan/agent/internal/service/agent"
 	stg "github.com/Shemistan/agent/internal/storage/agent"
+	_ "github.com/lib/pq" // nolint:gci
 )
 
 // Run initializes and starts the agent service

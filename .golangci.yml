@@ -1,4 +1,3 @@
-# More info on config here: https://github.com/golangci/golangci-lint#config-file
 linters:
   disable-all: true
   enable:
@@ -15,6 +14,14 @@ linters:
     - gochecknoinits
     - makezero
     - whitespace
+    - gci # раз уже настраиваем gci, имеет смысл его включить
+
+  # НОВЫЙ способ исключать директории (вместо run.skip-dirs)
+  exclusions:
+    paths:
+      # регулярки; ^tests/ означает "всё внутри каталога tests"
+      - ^tests/
+      - ^dev/
 
 linters-settings:
   gci:
@@ -22,15 +29,14 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(go.avito.ru/dwh/service-dwh-data-security)
     skip-generated: true
-    no-inline-comment: true
+    # правильное имя ключа — no-inline-comments (во множественном числе)
+    no-inline-comments: true
   revive:
     rules:
-      - name: var-naming # usually this is not critical
+      - name: var-naming
         disabled: true
 
-run:
-  skip-dirs:
-    - tests
-    - dev
+# секцию run можно оставить пустой или вообще убрать, если больше ничего не нужно
+# run:
+#   timeout: 3m

@@ -11,9 +11,8 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq" // nolint:gci
-
 	"github.com/Shemistan/agent/internal/config"
+	_ "github.com/lib/pq" // nolint:gci
 )
 
 // Run runs the database migrations
