@@ -5,9 +5,16 @@ http_port = 8080
 [database]
 host = "localhost"
 port = 5432
+user = "agent_user"
 name = "agent_db"
 sslmode = "disable"
 
+[tls]
+enabled = false
+cert_file = ""
+key_file = ""
+ca_file = ""
+
 [manager]
-url = "http://localhost:8081"
+urls = ["http://localhost:8081"]
 timeout_seconds = 5

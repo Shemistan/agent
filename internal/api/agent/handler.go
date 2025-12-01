@@ -35,13 +35,18 @@ type HealthResponse struct {
 	Status string `json:"status"`
 }
 
+// ManagerCheckItemResponse represents a single manager check result
+type ManagerCheckItemResponse struct {
+	ManagerURL string `json:"manager_url"`
+	Status     string `json:"status"`
+	HTTPStatus *int   `json:"http_status,omitempty"`
+	Error      string `json:"error,omitempty"`
+}
+
 // ManagerCheckResponse represents the response for the /check-manager endpoint
 type ManagerCheckResponse struct {
-	Status        string `json:"status"`
-	ManagerStatus string `json:"manager_status,omitempty"`
-	ManagerURL    string `json:"manager_url,omitempty"`
-	HTTPStatus    *int   `json:"http_status,omitempty"`
-	Error         string `json:"error,omitempty"`
+	Status   string                     `json:"status"`
+	Managers []ManagerCheckItemResponse `json:"managers"`
 }
 
 // Health handles GET /health requests
@@ -67,34 +72,43 @@ func (h *Handler) CheckManager(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	result, err := h.managerCheckService.CheckManager(ctx)
+	results, err := h.managerCheckService.CheckManager(ctx)
 	if err != nil {
 		h.logger.Error("check-manager handler: service error", slog.String("error", err.Error()))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ManagerCheckResponse{
-			Status: "error",
-			Error:  "internal server error",
+			Status:   "error",
+			Managers: []ManagerCheckItemResponse{},
 		})
 		return
 	}
 
-	response := ManagerCheckResponse{
-		ManagerStatus: result.Status,
-		ManagerURL:    result.ManagerURL,
+	// Build response with all manager check results
+	managers := make([]ManagerCheckItemResponse, 0, len(results.Results))
+	overallStatus := "success"
+
+	for _, result := range results.Results {
+		item := ManagerCheckItemResponse{
+			ManagerURL: result.ManagerURL,
+			Status:     result.Status,
+		}
+
+		if result.HTTPStatus != 0 {
+			item.HTTPStatus = &result.HTTPStatus
+		}
+
+		if result.Status != "success" {
+			item.Error = result.ErrorMessage
+			overallStatus = "error"
+		}
+
+		managers = append(managers, item)
 	}
 
-	if result.Status == "success" {
-		response.Status = "success"
-		if result.HTTPStatus != 0 {
-			response.HTTPStatus = &result.HTTPStatus
-		}
-	} else {
-		response.Status = "error"
-		if result.HTTPStatus != 0 {
-			response.HTTPStatus = &result.HTTPStatus
-		}
-		response.Error = result.ErrorMessage
+	response := ManagerCheckResponse{
+		Status:   overallStatus,
+		Managers: managers,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -37,26 +37,44 @@ migration/             # SQL миграції
 ```
 
 ### GET /check-manager
-Проверяет здоровье сервиса manager и записывает результат в БД.
+Проверяет здоровье всех настроенных сервисов manager и записывает результаты в БД.
 
-**Response (200 OK - success):**
+**Response (200 OK - все успешно):**
 ```json
 {
   "status": "success",
-  "manager_status": "success",
-  "manager_url": "http://localhost:8081",
-  "http_status": 200
+  "managers": [
+    {
+      "manager_url": "http://localhost:8081",
+      "status": "success",
+      "http_status": 200
+    },
+    {
+      "manager_url": "https://manager2:8443",
+      "status": "success",
+      "http_status": 200
+    }
+  ]
 }
 ```
 
-**Response (200 OK - error):**
+**Response (200 OK - одна ошибка):**
 ```json
 {
   "status": "error",
-  "manager_status": "error",
-  "manager_url": "http://localhost:8081",
-  "http_status": 500,
-  "error": "unexpected HTTP status: 500"
+  "managers": [
+    {
+      "manager_url": "http://localhost:8081",
+      "status": "success",
+      "http_status": 200
+    },
+    {
+      "manager_url": "https://manager2:8443",
+      "status": "error",
+      "http_status": 500,
+      "error": "unexpected HTTP status: 500"
+    }
+  ]
 }
 ```
 
@@ -79,21 +97,50 @@ http_port = 8080
 [database]
 host = "localhost"
 port = 5432
+user = "agent_user"
 name = "agent_db"
 sslmode = "disable"
 
+[tls]
+enabled = false
+cert_file = ""
+key_file = ""
+ca_file = ""
+
 [manager]
-url = "http://localhost:8081"
+urls = ["http://localhost:8081"]
 timeout_seconds = 5
 ```
 
 ### Переменные окружения
 
-Чувствительные данные:
+#### Database
 ```
-DB_USER=agent_user
-DB_PASSWORD=agent_password
-LOG_LEVEL=info
+DB_HOST=localhost           # PostgreSQL хост
+DB_PORT=5432               # PostgreSQL порт
+DB_USER=agent_user         # Пользователь БД
+DB_PASSWORD=agent_password # Пароль БД
+DB_NAME=agent_db           # Имя БД
+DB_SSLMODE=disable         # SSL режим (disable/require)
+```
+
+#### Application
+```
+APP_PORT=8080              # Порт HTTP сервера
+```
+
+#### Manager (несколько manager-ов через запятую)
+```
+MANAGER_URLS=https://185.211.170.173:8443,https://92.63.177.186:8443
+MANAGER_TIMEOUT=5          # Таймаут в секундах для manager запросов
+```
+
+#### TLS (по умолчанию отключен)
+```
+TLS_ENABLED=false          # Включить TLS (true/false)
+TLS_CERT_FILE=             # Путь к сертификату сервера
+TLS_KEY_FILE=              # Путь к приватному ключу сервера
+TLS_CA_FILE=               # Путь к сертификату CA для проверки client cert
 ```
 
 Для локальной разработки используйте `.env` файл:
@@ -226,6 +273,92 @@ error_message   TEXT NULL
 - **Обработка ошибок**: Правильная обработка и логирование ошибок
 - **Контекст**: Использование context для управления таймаутами
 - **Тесты**: Unit тесты с mock объектами
+- **Масштабируемость**: Поддержка нескольких manager сервисов одновременно
+
+## TLS конфигурация (отключено по умолчанию)
+
+Сервис готов к использованию mTLS (mutual TLS) аутентификации. В данный момент TLS отключен, но архитектура полностью поддерживает включение.
+
+### Включение TLS
+
+Для включения HTTPS и проверки сертификатов клиента:
+
+1. **Подготовить сертификаты:**
+   ```bash
+   # Сертификат и ключ сервера
+   openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -nodes
+
+   # CA сертификат для проверки client cert (опционально для mTLS)
+   ```
+
+2. **Установить переменные окружения:**
+   ```bash
+   export TLS_ENABLED=true
+   export TLS_CERT_FILE=/path/to/server.crt
+   export TLS_KEY_FILE=/path/to/server.key
+   export TLS_CA_FILE=/path/to/ca.crt  # для проверки client cert
+   ```
+
+3. **Запустить сервис:**
+   ```bash
+   go run ./cmd/agent/main.go
+   ```
+
+### Параметры TLS
+
+- **TLS_ENABLED**: Включить/выключить TLS (true/false, по умолчанию false)
+- **TLS_CERT_FILE**: Путь к файлу с сертификатом сервера (*.crt)
+- **TLS_KEY_FILE**: Путь к файлу с приватным ключом сервера (*.key)
+- **TLS_CA_FILE**: Путь к файлу с CA сертификатом для проверки client cert (опционально)
+
+## Поддержка нескольких Manager сервисов
+
+Agent может проверять здоровье нескольких manager сервисов одновременно:
+
+### Конфигурация
+
+Укажите несколько URL через запятую в переменной окружения:
+
+```bash
+export MANAGER_URLS=https://185.211.170.173:8443,https://92.63.177.186:8443
+go run ./cmd/agent/main.go
+```
+
+Или в `app.toml`:
+
+```toml
+[manager]
+urls = [
+  "https://185.211.170.173:8443",
+  "https://92.63.177.186:8443"
+]
+timeout_seconds = 5
+```
+
+### Результаты проверки
+
+Endpoint `/check-manager` будет проверять все URL и вернёт результаты для каждого:
+
+```json
+{
+  "status": "error",
+  "managers": [
+    {
+      "manager_url": "https://185.211.170.173:8443",
+      "status": "success",
+      "http_status": 200
+    },
+    {
+      "manager_url": "https://92.63.177.186:8443",
+      "status": "error",
+      "http_status": 503,
+      "error": "unexpected HTTP status: 503"
+    }
+  ]
+}
+```
+
+**Общий статус** (`status`) будет `"error"` если хотя бы один manager недоступен.
 
 ## Лицензия
 

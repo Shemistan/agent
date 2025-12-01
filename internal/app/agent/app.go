@@ -50,7 +50,7 @@ func Run(configPath string) error {
 	managerCheckService := svc.NewManagerCheckService(
 		httpClient,
 		storage,
-		cfg.GetManagerURL(),
+		cfg.GetManagerURLs(),
 		logger,
 	)
 

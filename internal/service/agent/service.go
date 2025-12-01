@@ -36,7 +36,7 @@ func (s *HealthService) HandleHealth(ctx context.Context) error {
 type ManagerCheckService struct {
 	httpClient          *http.Client
 	managerCheckStorage storage.ManagerCheckStorage
-	managerURL          string
+	managerURLs         []string
 	logger              *slog.Logger
 }
 
@@ -44,13 +44,13 @@ type ManagerCheckService struct {
 func NewManagerCheckService(
 	httpClient *http.Client,
 	managerCheckStorage storage.ManagerCheckStorage,
-	managerURL string,
+	managerURLs []string,
 	logger *slog.Logger,
 ) *ManagerCheckService {
 	return &ManagerCheckService{
 		httpClient:          httpClient,
 		managerCheckStorage: managerCheckStorage,
-		managerURL:          managerURL,
+		managerURLs:         managerURLs,
 		logger:              logger,
 	}
 }
@@ -60,30 +60,45 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
-// CheckManager checks the manager service health and records the result
-func (s *ManagerCheckService) CheckManager(ctx context.Context) (service.ManagerCheckResult, error) {
+// CheckManager checks all configured manager services and records results
+func (s *ManagerCheckService) CheckManager(ctx context.Context) (service.ManagerCheckResults, error) {
+	results := service.ManagerCheckResults{
+		Results: make([]service.ManagerCheckResult, 0, len(s.managerURLs)),
+	}
+
+	// Check each manager URL
+	for _, managerURL := range s.managerURLs {
+		result := s.checkSingleManager(ctx, managerURL)
+		results.Results = append(results.Results, result)
+	}
+
+	return results, nil
+}
+
+// checkSingleManager checks a single manager service health
+func (s *ManagerCheckService) checkSingleManager(ctx context.Context, managerURL string) service.ManagerCheckResult {
 	result := service.ManagerCheckResult{
-		ManagerURL: s.managerURL,
+		ManagerURL: managerURL,
 		Status:     "error",
 	}
 
-	url := fmt.Sprintf("%s/health", s.managerURL)
+	url := fmt.Sprintf("%s/health", managerURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to create request: %v", err)
 		result.ErrorMessage = errMsg
-		s.logger.Error("manager check: request creation failed", slog.String("error", errMsg))
+		s.logger.Error("manager check: request creation failed", slog.String("url", managerURL), slog.String("error", errMsg))
 		s.saveResult(ctx, result)
-		return result, nil
+		return result
 	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		errMsg := fmt.Sprintf("HTTP request failed: %v", err)
 		result.ErrorMessage = errMsg
-		s.logger.Error("manager check: HTTP request failed", slog.String("error", errMsg))
+		s.logger.Error("manager check: HTTP request failed", slog.String("url", managerURL), slog.String("error", errMsg))
 		s.saveResult(ctx, result)
-		return result, nil
+		return result
 	}
 	defer resp.Body.Close()
 
@@ -93,9 +108,9 @@ func (s *ManagerCheckService) CheckManager(ctx context.Context) (service.Manager
 	if resp.StatusCode != http.StatusOK {
 		errMsg := fmt.Sprintf("unexpected HTTP status: %d", resp.StatusCode)
 		result.ErrorMessage = errMsg
-		s.logger.Error("manager check: unexpected status", slog.Int("status", resp.StatusCode))
+		s.logger.Error("manager check: unexpected status", slog.String("url", managerURL), slog.Int("status", resp.StatusCode))
 		s.saveResult(ctx, result)
-		return result, nil
+		return result
 	}
 
 	// Parse response body
@@ -103,18 +118,18 @@ func (s *ManagerCheckService) CheckManager(ctx context.Context) (service.Manager
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to read response body: %v", err)
 		result.ErrorMessage = errMsg
-		s.logger.Error("manager check: failed to read body", slog.String("error", errMsg))
+		s.logger.Error("manager check: failed to read body", slog.String("url", managerURL), slog.String("error", errMsg))
 		s.saveResult(ctx, result)
-		return result, nil
+		return result
 	}
 
 	var healthResp healthResponse
 	if err := json.Unmarshal(body, &healthResp); err != nil {
 		errMsg := fmt.Sprintf("failed to parse response: %v", err)
 		result.ErrorMessage = errMsg
-		s.logger.Error("manager check: failed to parse response", slog.String("error", errMsg))
+		s.logger.Error("manager check: failed to parse response", slog.String("url", managerURL), slog.String("error", errMsg))
 		s.saveResult(ctx, result)
-		return result, nil
+		return result
 	}
 
 	// Check if status is "success"
@@ -122,17 +137,17 @@ func (s *ManagerCheckService) CheckManager(ctx context.Context) (service.Manager
 		errMsg := fmt.Sprintf("manager returned status: %s", healthResp.Status)
 		result.ErrorMessage = errMsg
 		result.Status = "error"
-		s.logger.Error("manager check: manager returned error status", slog.String("status", healthResp.Status))
+		s.logger.Error("manager check: manager returned error status", slog.String("url", managerURL), slog.String("status", healthResp.Status))
 		s.saveResult(ctx, result)
-		return result, nil
+		return result
 	}
 
 	// Success case
 	result.Status = "success"
 	result.ErrorMessage = ""
-	s.logger.Info("manager check: success")
+	s.logger.Info("manager check: success", slog.String("url", managerURL))
 	s.saveResult(ctx, result)
-	return result, nil
+	return result
 }
 
 // saveResult saves the check result to the database, logging errors without failing

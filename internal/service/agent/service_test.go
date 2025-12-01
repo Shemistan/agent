@@ -64,15 +64,20 @@ func TestManagerCheckService_CheckManager_Success(t *testing.T) {
 	service := NewManagerCheckService(
 		server.Client(),
 		mockStorage,
-		server.URL,
+		[]string{server.URL},
 		logger,
 	)
 
-	result, err := service.CheckManager(context.Background())
+	results, err := service.CheckManager(context.Background())
 	if err != nil {
 		t.Fatalf("CheckManager failed: %v", err)
 	}
 
+	if len(results.Results) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(results.Results))
+	}
+
+	result := results.Results[0]
 	if result.Status != "success" {
 		t.Fatalf("Expected success, got %s", result.Status)
 	}
@@ -104,15 +109,20 @@ func TestManagerCheckService_CheckManager_Failure_BadStatus(t *testing.T) {
 	service := NewManagerCheckService(
 		server.Client(),
 		mockStorage,
-		server.URL,
+		[]string{server.URL},
 		logger,
 	)
 
-	result, err := service.CheckManager(context.Background())
+	results, err := service.CheckManager(context.Background())
 	if err != nil {
 		t.Fatalf("CheckManager failed: %v", err)
 	}
 
+	if len(results.Results) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(results.Results))
+	}
+
+	result := results.Results[0]
 	if result.Status != "error" {
 		t.Fatalf("Expected error, got %s", result.Status)
 	}
@@ -134,15 +144,20 @@ func TestManagerCheckService_CheckManager_Failure_NonOKStatus(t *testing.T) {
 	service := NewManagerCheckService(
 		server.Client(),
 		mockStorage,
-		server.URL,
+		[]string{server.URL},
 		logger,
 	)
 
-	result, err := service.CheckManager(context.Background())
+	results, err := service.CheckManager(context.Background())
 	if err != nil {
 		t.Fatalf("CheckManager failed: %v", err)
 	}
 
+	if len(results.Results) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(results.Results))
+	}
+
+	result := results.Results[0]
 	if result.Status != "error" {
 		t.Fatalf("Expected error, got %s", result.Status)
 	}
@@ -165,15 +180,20 @@ func TestManagerCheckService_CheckManager_Failure_ConnectionError(t *testing.T) 
 	service := NewManagerCheckService(
 		client,
 		mockStorage,
-		"http://invalid-host-that-does-not-exist.example.com",
+		[]string{"http://invalid-host-that-does-not-exist.example.com"},
 		logger,
 	)
 
-	result, err := service.CheckManager(context.Background())
+	results, err := service.CheckManager(context.Background())
 	if err != nil {
 		t.Fatalf("CheckManager failed: %v", err)
 	}
 
+	if len(results.Results) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(results.Results))
+	}
+
+	result := results.Results[0]
 	if result.Status != "error" {
 		t.Fatalf("Expected error, got %s", result.Status)
 	}
