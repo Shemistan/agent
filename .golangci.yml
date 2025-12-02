@@ -1,0 +1,20 @@
+linters:
+  disable-all: true
+  enable:
+    - govet
+    - errcheck
+    - ineffassign
+    - typecheck
+    - gosec
+    - gofumpt
+    - gosimple
+    - unused
+    - staticcheck
+    - gochecknoinits
+    - makezero
+    - whitespace
+    - gci # раз уже настраиваем gci, имеет смысл его включить
+
+run:
+  # Чтобы не висеть вечно, но и не падать слишком быстро
+  timeout: 3m

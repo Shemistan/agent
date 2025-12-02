@@ -100,7 +100,11 @@ func (s *ManagerCheckService) checkSingleManager(ctx context.Context, managerURL
 		s.saveResult(ctx, result)
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			s.logger.Warn("manager check: failed to close response body", slog.String("url", managerURL), slog.String("error", cerr.Error()))
+		}
+	}()
 
 	result.HTTPStatus = resp.StatusCode
 

@@ -9,12 +9,11 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/lib/pq"
-
 	api "github.com/Shemistan/agent/internal/api/agent"
 	"github.com/Shemistan/agent/internal/config"
 	svc "github.com/Shemistan/agent/internal/service/agent"
 	stg "github.com/Shemistan/agent/internal/storage/agent"
+	_ "github.com/lib/pq" // nolint:gci
 )
 
 // Run initializes and starts the agent service
@@ -34,7 +33,11 @@ func Run(configPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
-	defer db.Close()
+	defer func() {
+		if cerr := db.Close(); cerr != nil {
+			logger.Warn("failed to close database", slog.String("error", cerr.Error()))
+		}
+	}()
 	logger.Info("Connected to database")
 
 	// Create HTTP client for manager service

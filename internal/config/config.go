@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -58,7 +59,11 @@ func Load(configPath string) (*Config, error) {
 		cfg.Database.Host = host
 	}
 	if port := os.Getenv("DB_PORT"); port != "" {
-		fmt.Sscanf(port, "%d", &cfg.Database.Port)
+		parsedPort, err := parseIntEnv("DB_PORT", port)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Database.Port = parsedPort
 	}
 	if user := os.Getenv("DB_USER"); user != "" {
 		cfg.Database.User = user
@@ -72,7 +77,11 @@ func Load(configPath string) (*Config, error) {
 
 	// App configuration
 	if port := os.Getenv("APP_PORT"); port != "" {
-		fmt.Sscanf(port, "%d", &cfg.HTTPPort)
+		parsedPort, err := parseIntEnv("APP_PORT", port)
+		if err != nil {
+			return nil, err
+		}
+		cfg.HTTPPort = parsedPort
 	}
 
 	// TLS configuration
@@ -94,7 +103,11 @@ func Load(configPath string) (*Config, error) {
 		cfg.Manager.URLs = ParseManagerURLs(managerURLs)
 	}
 	if timeout := os.Getenv("MANAGER_TIMEOUT"); timeout != "" {
-		fmt.Sscanf(timeout, "%d", &cfg.Manager.TimeoutSeconds)
+		parsedTimeout, err := parseIntEnv("MANAGER_TIMEOUT", timeout)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Manager.TimeoutSeconds = parsedTimeout
 	}
 
 	// Set defaults
@@ -150,4 +163,12 @@ func (c *Config) GetManagerURLs() []string {
 // GetManagerTimeout returns the manager timeout in seconds
 func (c *Config) GetManagerTimeout() int {
 	return c.Manager.TimeoutSeconds
+}
+
+func parseIntEnv(name, value string) (int, error) {
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s: %w", name, err)
+	}
+	return parsed, nil
 }

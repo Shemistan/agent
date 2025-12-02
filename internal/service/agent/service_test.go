@@ -32,6 +32,14 @@ func (m *MockManagerCheckStorage) SaveManagerCheck(ctx context.Context, check st
 	return nil
 }
 
+func mustWrite(t *testing.T, w http.ResponseWriter, data []byte) {
+	t.Helper()
+
+	if _, err := w.Write(data); err != nil {
+		t.Fatalf("failed to write response: %v", err)
+	}
+}
+
 func TestHealthService_HandleHealth(t *testing.T) {
 	mockStorage := &MockHealthStorage{}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
@@ -55,7 +63,7 @@ func TestManagerCheckService_CheckManager_Success(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"success"}`))
+		mustWrite(t, w, []byte(`{"status":"success"}`))
 	}))
 	defer server.Close()
 
@@ -100,7 +108,7 @@ func TestManagerCheckService_CheckManager_Failure_BadStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"error"}`))
+		mustWrite(t, w, []byte(`{"status":"error"}`))
 	}))
 	defer server.Close()
 
