@@ -153,14 +153,34 @@ cp .env.example .env
 
 ### Через Docker Compose (рекомендуется)
 
+#### Вариант 1: Использование скрипта (рекомендуется)
+
 ```bash
-docker-compose up --build
+./start.sh
 ```
 
+Скрипт автоматически:
+- Очистит старые контейнеры и volumes
+- Загрузит переменные из `.env` файла
+- Соберет и запустит все контейнеры
+- Проверит статус сервисов
+
+#### Вариант 2: Ручной запуск
+
+```bash
+# Остановите старые контейнеры и очистите volumes
+docker-compose down -v
+
+# Запустите с чистыми переменными окружения из .env
+env -i $(cat .env | xargs) docker-compose up --build -d
+```
+
+**⚠️ Важно:** Если у вас установлены системные переменные окружения (например, `DB_PASSWORD`), они будут иметь приоритет над `.env` файлом. Используйте скрипт `start.sh` или команду с `env -i` для корректной работы.
+
 Это запустит:
-1. PostgreSQL контейнер
+1. PostgreSQL контейнер (порт 54322)
 2. Migrator для применения миграций
-3. Agent сервис на порту 8080
+3. Agent сервис на порту 8081
 
 ### Локально (при запущенной БД)
 
@@ -219,13 +239,26 @@ go test ./internal/service/agent -v
 ### Health check
 
 ```bash
-curl -X GET http://localhost:8080/health
+curl -X GET http://localhost:8081/health
 ```
 
 ### Check manager
 
 ```bash
-curl -X GET http://localhost:8080/check-manager
+curl -X GET http://localhost:8081/check-manager
+```
+
+### Проверка данных в БД
+
+```bash
+# Подключение к БД в контейнере
+docker-compose exec db psql -U user -d pgsql_db_agent
+
+# Просмотр вызовов health endpoint
+docker-compose exec db psql -U user -d pgsql_db_agent -c "SELECT * FROM health_calls;"
+
+# Просмотр проверок manager
+docker-compose exec db psql -U user -d pgsql_db_agent -c "SELECT * FROM manager_checks;"
 ```
 
 ## Сборка

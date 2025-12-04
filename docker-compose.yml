@@ -21,7 +21,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: pgsql_migrator
-    command: ./agent
+    command: ./migrator migration
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -49,9 +49,12 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_SSLMODE: ${DB_SSLMODE}
-      SERVICE_PORT: ${SERVICE_PORT}
+      APP_PORT: ${APP_PORT:-8081}
+      MANAGER_URLS: ${MANAGER_URLS:-http://localhost:8081}
+      MANAGER_TIMEOUT: ${MANAGER_TIMEOUT:-5}
+      TLS_ENABLED: ${TLS_ENABLED:-false}
     ports:
-      - "${SERVICE_PORT}:${SERVICE_PORT}"
+      - "${SERVICE_PORT}:${APP_PORT:-8081}"
     depends_on:
       migrator:
         condition: service_completed_successfully
