@@ -40,6 +40,7 @@ jobs:
         env:
           SERVICE_PORT: ${{ secrets.SERVICE_PORT }}
           SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
+          APP_PORT: ${{ secrets.APP_PORT }}
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_USER: ${{ secrets.DB_USER }}
@@ -47,10 +48,13 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_SSLMODE: ${{ secrets.DB_SSLMODE }}
           TLS_ENABLED: ${{ secrets.TLS_ENABLED }}
+          MANAGER_URLS: ${{ secrets.MANAGER_URLS }}
+          MANAGER_TIMEOUT: ${{ secrets.MANAGER_TIMEOUT }}
         run: |
           ssh "$SSH_USER@$SSH_HOST" "cat > /opt/$SERVICE_NAME/.env" << EOF
           SERVICE_NAME=$SERVICE_NAME
           SERVICE_PORT=$SERVICE_PORT
+          APP_PORT=$APP_PORT
           DB_HOST=$DB_HOST
           DB_PORT=$DB_PORT
           DB_USER=$DB_USER
@@ -58,9 +62,11 @@ jobs:
           DB_NAME=$DB_NAME
           DB_SSLMODE=$DB_SSLMODE
           TLS_ENABLED=$TLS_ENABLED
+          MANAGER_URLS=$MANAGER_URLS
+          MANAGER_TIMEOUT=$MANAGER_TIMEOUT
           EOF
 
-      - name: Run migrations and restart containers
+      - name: Deploy containers
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -70,10 +76,29 @@ jobs:
             set -e
             cd /opt/$SERVICE_NAME
 
-            # логинимся в Docker Hub на СЕРВЕРЕ
+            # Login to Docker Hub on server
             echo \"$DOCKERHUB_TOKEN\" | docker login -u \"$DOCKERHUB_USERNAME\" --password-stdin
 
+            # Stop and remove old containers and volumes
+            docker compose down -v
+
+            # Build images
             docker compose build
-            docker compose up --no-deps migrator
-            docker compose up -d --no-deps $SERVICE_NAME
+
+            # Start all services in correct order (db -> migrator -> manager)
+            # Thanks to depends_on conditions in docker-compose.yml:
+            # - migrator waits for db to be healthy
+            # - manager waits for migrator to complete successfully
+            docker compose up -d
+
+            # Wait for services to be ready
+            sleep 5
+
+            # Show container status
+            echo '=== Container Status ==='
+            docker compose ps
+
+            # Show recent logs
+            echo '=== Recent Logs ==='
+            docker compose logs --tail=20
           "
