@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	"github.com/joho/godotenv"
 )
 
@@ -43,15 +42,11 @@ type Config struct {
 	Manager     ManagerCfg  `toml:"manager"`
 }
 
-// Load loads configuration from app.toml and environment variables
-func Load(configPath string) (*Config, error) {
+func Load() (*Config, error) {
 	// Load .env file if in local environment
 	_ = godotenv.Load(".env")
 
 	var cfg Config
-	if _, err := toml.DecodeFile(configPath, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to decode config: %w", err)
-	}
 
 	// Override with environment variables
 	// Database configuration

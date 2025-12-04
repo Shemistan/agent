@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	if err := agent.Run("app.toml"); err != nil {
+	if err := agent.Run(); err != nil {
 		log.Fatalf("Agent failed: %v", err)
 	}
 }

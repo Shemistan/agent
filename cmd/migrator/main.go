@@ -13,7 +13,7 @@ func main() {
 		migrationDir = os.Args[1]
 	}
 
-	if err := migrator.Run("app.toml", migrationDir); err != nil {
+	if err := migrator.Run(migrationDir); err != nil {
 		log.Fatalf("Migrator failed: %v", err)
 	}
 }

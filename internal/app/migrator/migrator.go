@@ -16,9 +16,9 @@ import (
 )
 
 // Run runs the database migrations
-func Run(configPath, migrationDir string) error {
+func Run(migrationDir string) error {
 	// Load configuration
-	cfg, err := config.Load(configPath)
+	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
