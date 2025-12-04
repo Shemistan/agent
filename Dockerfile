@@ -1,10 +1,7 @@
-# Multi-stage build: builder
+# Builder stage
 FROM golang:1.23.4-alpine AS builder
 
 WORKDIR /app
-
-# Install build dependencies
-RUN apk add --no-cache git
 
 # Copy go mod files
 COPY go.mod go.sum ./
@@ -32,14 +29,11 @@ WORKDIR /app
 COPY --from=builder /app/agent .
 COPY --from=builder /app/migrator .
 
-# Copy config and migrations
-COPY app.toml .
-COPY migration/ ./migration/
+# Copy migrations
+COPY migration ./migration
 
-EXPOSE 8080
+# Expose port
+EXPOSE 8081
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
-
+# Default command
 CMD ["./agent"]

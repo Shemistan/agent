@@ -17,9 +17,9 @@ import (
 )
 
 // Run initializes and starts the agent service
-func Run(configPath string) error {
+func Run() error {
 	// Load configuration
-	cfg, err := config.Load(configPath)
+	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}

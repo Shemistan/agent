@@ -1,61 +1,60 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16-alpine
-    container_name: pgsql_db
+    container_name: pgsql_db_${SERVICE_NAME}
     environment:
-      POSTGRES_USER: ${DB_USER:-pgsql_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password_here}
-      POSTGRES_DB: pgsql_db
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pgsql_user}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-    networks:
-      - agent_network
+      retries: 10
 
   migrator:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: pgsql_migrator
+    command: ./agent
     environment:
-      DB_USER: ${DB_USER:-pgsql_user}
-      DB_PASSWORD: ${DB_PASSWORD:-secure_password_here}
-    command: ./migrator migration
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SSLMODE: ${DB_SSLMODE}
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./app.toml:/app/app.toml:ro
       - ./migration:/app/migration:ro
+    restart: "no"
 
-  agent:
+  manager:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: agent_service
+    container_name: agent_app
+    command: ./agent
     environment:
-      DB_USER: ${DB_USER:-pgsql_user}
-      DB_PASSWORD: ${DB_PASSWORD:-secure_password_here}
-      LOG_LEVEL: info
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SSLMODE: ${DB_SSLMODE}
+      SERVICE_PORT: ${SERVICE_PORT}
     ports:
-      - "8080:8080"
+      - "${SERVICE_PORT}:${SERVICE_PORT}"
     depends_on:
       migrator:
         condition: service_completed_successfully
-    networks:
-      - agent_network
 
 volumes:
   postgres_data:
-
-networks:
-  agent_network:
-    driver: bridge
