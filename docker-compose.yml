@@ -20,7 +20,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pgsql_migrator
+    container_name: pgsql_migrator_${SERVICE_NAME}
     command: ./migrator migration
     environment:
       DB_HOST: db
@@ -40,7 +40,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: agent_app
+    container_name: ${SERVICE_NAME}_app
     command: ./agent
     environment:
       DB_HOST: db
